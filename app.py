@@ -16,6 +16,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 # Download NLTK resources if needed
 nltk.download("punkt")
+nltk.download('punkt_tab')
 nltk.download("stopwords")
 nltk.download("wordnet")
 
