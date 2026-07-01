@@ -90,7 +90,7 @@ vectorizer = load_pickle("models/tfidfvectorizer.pkl")
 tokenizer = load_pickle("models/tokenizer.pkl")
 
 results = pd.DataFrame({
-    "Model": ["SVM", "Decision Tree", "AdaBoost", "FNN", "LSTM", "CNN","DistilBERT", "RoBERTa"]],
+    "Model": ["SVM", "Decision Tree", "AdaBoost", "FNN", "LSTM", "CNN","DistilBERT", "RoBERTa"],
     "Accuracy": [0.97, 0.90, 0.95, 0.97, 0.81, 0.96, None, None],
     "Precision": [0.97, 0.91, 0.96, 0.97, 0.83, 0.97, None, None],
     "Recall": [0.97, 0.89, 0.95, 0.97, 0.80, 0.97, None, None],
