@@ -7,6 +7,8 @@ import string
 import nltk
 import pandas as pd
 from transformers import pipeline
+import docx
+import PyPDF2
 
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -43,6 +45,24 @@ def load_roberta():
         "text-classification",
         model="openai-community/roberta-base-openai-detector"
     )
+
+def read_txt(file):
+    return file.read().decode("utf-8", errors="ignore")
+
+def read_docx(file):
+    document = docx.Document(file)
+    return "\n".join([para.text for para in document.paragraphs])
+
+def read_pdf(file):
+    reader = PyPDF2.PdfReader(file)
+    text = ""
+
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text + "\n"
+
+    return text
 
 # ==========================
 # PREPROCESSING
@@ -110,7 +130,29 @@ model_choice = st.selectbox(
     ["SVM", "Decision Tree", "AdaBoost", "FNN", "LSTM", "CNN","DistilBERT", "RoBERTa"]
 )
 
-text = st.text_area("Enter text", height=200)
+uploaded_file = st.file_uploader(
+    "Upload a file",
+    type=["txt", "docx", "pdf"]
+)
+
+text = ""
+
+if uploaded_file is not None:
+    file_type = uploaded_file.name.split(".")[-1].lower()
+
+    if file_type == "txt":
+        text = read_txt(uploaded_file)
+
+    elif file_type == "docx":
+        text = read_docx(uploaded_file)
+
+    elif file_type == "pdf":
+        text = read_pdf(uploaded_file)
+
+    st.text_area("Extracted text", text, height=250)
+
+else:
+    text = st.text_area("Enter text", height=200)
 
 
 # ==========================
