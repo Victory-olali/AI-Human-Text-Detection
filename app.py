@@ -6,6 +6,7 @@ import pickle
 import string
 import nltk
 import pandas as pd
+from transformers import pipeline
 
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -28,6 +29,20 @@ def load_pickle(path):
 @st.cache_resource
 def load_keras(path):
     return load_model(path)
+
+@st.cache_resource
+def load_distilbert():
+    return pipeline(
+        "text-classification",
+        model="distilbert-base-uncased-finetuned-sst-2-english"
+    )
+
+@st.cache_resource
+def load_roberta():
+    return pipeline(
+        "text-classification",
+        model="openai-community/roberta-base-openai-detector"
+    )
 
 # ==========================
 # PREPROCESSING
@@ -75,12 +90,12 @@ vectorizer = load_pickle("models/tfidfvectorizer.pkl")
 tokenizer = load_pickle("models/tokenizer.pkl")
 
 results = pd.DataFrame({
-    "Model": ["SVM", "Decision Tree", "AdaBoost", "FNN", "LSTM", "CNN"],
-    "Accuracy": [0.97, 0.90, 0.95, 0.97, 0.81, 0.96],
-    "Precision": [0.97, 0.91, 0.96, 0.97, 0.83, 0.97],
-    "Recall": [0.97, 0.89, 0.95, 0.97, 0.80, 0.97],
-    "F1 Score": [0.97, 0.90, 0.95, 0.97, 0.82, 0.97],
-    "ROC AUC": [0.971, 0.902, 0.95, 0.97, 0.87, 0.995]
+    "Model": ["SVM", "Decision Tree", "AdaBoost", "FNN", "LSTM", "CNN","DistilBERT", "RoBERTa"]],
+    "Accuracy": [0.97, 0.90, 0.95, 0.97, 0.81, 0.96, None, None],
+    "Precision": [0.97, 0.91, 0.96, 0.97, 0.83, 0.97, None, None],
+    "Recall": [0.97, 0.89, 0.95, 0.97, 0.80, 0.97, None, None],
+    "F1 Score": [0.97, 0.90, 0.95, 0.97, 0.82, 0.97, None, None],
+    "ROC AUC": [0.971, 0.902, 0.95, 0.97, 0.87, 0.995, None, None]
 })
 
 
@@ -92,7 +107,7 @@ st.title("AI vs Human Text Classifier")
 
 model_choice = st.selectbox(
     "Choose Model",
-    ["SVM", "Decision Tree", "AdaBoost", "FNN", "LSTM", "CNN"]
+    ["SVM", "Decision Tree", "AdaBoost", "FNN", "LSTM", "CNN","DistilBERT", "RoBERTa"]
 )
 
 text = st.text_area("Enter text", height=200)
@@ -111,6 +126,7 @@ if st.button("Predict"):
     processed_text = preprocess(text)
 
     probability = None
+    confidence = None
 
     # TF-IDF based models
     if model_choice in ["SVM", "Decision Tree", "AdaBoost", "FNN"]:
@@ -140,8 +156,10 @@ if st.button("Predict"):
             prediction = fnn_probs.argmax()
             probability = fnn_probs[1]
 
+
     # LSTM / CNN models
-    else:
+    elif model_choice in ["LSTM", "CNN"]:
+
         sequence = tokenizer.texts_to_sequences([processed_text])
 
         padded = pad_sequences(
@@ -163,21 +181,49 @@ if st.button("Predict"):
             probability = cnn_model.predict(padded)[0][0]
             prediction = 1 if probability >= 0.5 else 0
 
-    # ==========================
-    # DISPLAY RESULT
-    # ==========================
+    # Hugging Face models
+    elif model_choice == "DistilBERT":
 
+        distilbert = load_distilbert()
+        result = distilbert(text)[0]
+
+        hf_label = result["label"]
+        confidence = result["score"]
+
+        # Your current DistilBERT is sentiment-based:
+        # POSITIVE/NEGATIVE is NOT truly AI/Human.
+        # This mapping is just a placeholder.
+        if hf_label.lower() in ["ai", "fake", "generated", "label_1", "positive"]:
+            prediction = 1
+        else:
+            prediction = 0
+
+    elif model_choice == "RoBERTa":
+
+        roberta = load_roberta()
+        result = roberta(text)[0]
+
+        hf_label = result["label"]
+        confidence = result["score"]
+
+        if hf_label.lower() == "fake":
+            prediction = 1
+        else:
+            prediction = 0
+
+    # Display result
     label = "AI Generated" if prediction == 1 else "Human Written"
 
     st.subheader("Prediction")
     st.success(label)
 
-    if probability is not None:
+    if confidence is None and probability is not None:
         if prediction == 1:
             confidence = probability
         else:
             confidence = 1 - probability
 
+    if confidence is not None:
         st.write(f"Confidence: {confidence * 100:.2f}%")
 
     st.write("Processed text:")
